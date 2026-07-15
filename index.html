@@ -261,6 +261,7 @@
     background: #000;
     z-index: 1;
     position: relative;
+    pointer-events: none; /* Forces interaction via the Play button or frame for upload */
   }
   .video-placeholder {
     font-family: 'Press Start 2P', monospace;
@@ -286,8 +287,8 @@
   .upload-target:hover .upload-hint,
   .video-frame:hover .upload-hint{opacity:1}
   
-  /* Reveal Button & Editable Text */
-  .reveal-btn{
+  /* Reveal & Play Buttons */
+  .reveal-btn, .play-btn{
     background:var(--purple);color:#fff;
     font-family:'Press Start 2P',monospace;font-size:12px;
     border:none;padding:12px 22px;cursor:pointer;
@@ -295,8 +296,8 @@
     transition:transform .1s;
     letter-spacing:1px;
   }
-  .reveal-btn:hover{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--pink)}
-  .reveal-btn:active{transform:translate(4px,4px);box-shadow:0 0 0 var(--pink)}
+  .reveal-btn:hover, .play-btn:hover{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--pink)}
+  .reveal-btn:active, .play-btn:active{transform:translate(4px,4px);box-shadow:0 0 0 var(--pink)}
   
   .answer-reveal{
     font-family:'Press Start 2P',monospace;
@@ -711,38 +712,60 @@ let savedState = getState();
 
 /* ============== INDEXED DB HELPER (For Videos) ============== */
 let db;
-const dbRequest = indexedDB.open('am_recognition_db', 1);
+let dbReady = false;
 
-dbRequest.onupgradeneeded = function(event) {
-  db = event.target.result;
-  if (!db.objectStoreNames.contains('videos')) {
-    db.createObjectStore('videos', { keyPath: 'id' });
+function initVideoDB(){
+  try {
+    if (!('indexedDB' in window) || !window.indexedDB) {
+      console.warn('IndexedDB not available — video uploads will not persist across reloads.');
+      return;
+    }
+    const dbRequest = indexedDB.open('am_recognition_db', 1);
+
+    dbRequest.onupgradeneeded = function(event) {
+      db = event.target.result;
+      if (!db.objectStoreNames.contains('videos')) {
+        db.createObjectStore('videos', { keyPath: 'id' });
+      }
+    };
+
+    dbRequest.onsuccess = function(event) {
+      db = event.target.result;
+      dbReady = true;
+      loadSavedVideos(); // Load videos onto slides once DB is ready
+    };
+
+    dbRequest.onerror = function(event) {
+      console.error("IndexedDB error:", event);
+    };
+  } catch(e) {
+    console.warn('IndexedDB init failed — video uploads will not persist across reloads.', e);
   }
-};
-
-dbRequest.onsuccess = function(event) {
-  db = event.target.result;
-  loadSavedVideos(); // Load videos onto slides once DB is ready
-};
-
-dbRequest.onerror = function(event) {
-  console.error("IndexedDB error:", event);
-};
+}
+initVideoDB();
 
 function saveVideoToDB(id, blob) {
-  if (!db) return;
-  const tx = db.transaction('videos', 'readwrite');
-  const store = tx.objectStore('videos');
-  store.put({ id: id, blob: blob });
+  if (!db || !dbReady) return;
+  try {
+    const tx = db.transaction('videos', 'readwrite');
+    const store = tx.objectStore('videos');
+    store.put({ id: id, blob: blob });
+  } catch(e) {
+    console.warn('Could not save video to IndexedDB.', e);
+  }
 }
 
 function loadVideoFromDB(id, callback) {
-  if (!db) return callback(null);
-  const tx = db.transaction('videos', 'readonly');
-  const store = tx.objectStore('videos');
-  const req = store.get(id);
-  req.onsuccess = () => callback(req.result ? req.result.blob : null);
-  req.onerror = () => callback(null);
+  if (!db || !dbReady) return callback(null);
+  try {
+    const tx = db.transaction('videos', 'readonly');
+    const store = tx.objectStore('videos');
+    const req = store.get(id);
+    req.onsuccess = () => callback(req.result ? req.result.blob : null);
+    req.onerror = () => callback(null);
+  } catch(e) {
+    callback(null);
+  }
 }
 
 function loadSavedVideos() {
@@ -751,7 +774,9 @@ function loadSavedVideos() {
     loadVideoFromDB(id, (blob) => {
       if (blob) {
         const url = URL.createObjectURL(blob);
-        target.innerHTML = `<video src="${url}" controls playsinline class="uploaded-video"></video><div class="upload-hint">⬆ CLICK TO REPLACE VIDEO</div>`;
+        target.innerHTML = `<video src="${url}" playsinline class="uploaded-video"></video><div class="upload-hint">⬆ CLICK TO REPLACE VIDEO</div>`;
+        const playBtn = target.parentElement.querySelector('.play-btn');
+        if (playBtn) playBtn.textContent = '▶ PLAY';
       }
     });
   });
@@ -1103,7 +1128,6 @@ for(let i=0; i<12; i++) {
   vSlide.className = 'slide';
   vSlide.dataset.slide = 33 + i;
   
-  // Starts with placeholder. IndexedDB will replace it if a video exists.
   vSlide.innerHTML = `
     <div class="logo-stage">
       <div class="round-banner">
@@ -1114,6 +1138,7 @@ for(let i=0; i<12; i++) {
         <div class="video-placeholder">▶ CLICK TO UPLOAD MP4<br>OR DRAG & DROP</div>
         <div class="upload-hint">⬆ CLICK TO REPLACE VIDEO</div>
       </div>
+      <button class="play-btn">▶ PLAY</button>
     </div>
   `;
   ready2.parentNode.insertBefore(vSlide, ready2.nextSibling);
@@ -1196,16 +1221,38 @@ function go(idx){
   }
 }
 
-document.getElementById('prevBtn').addEventListener('click', ()=>go(current-1));
-document.getElementById('nextBtn').addEventListener('click', ()=>go(current+1));
+// Explicit Nav Button Listeners using addEventListener
+document.getElementById('prevBtn').addEventListener('click', (e) => { 
+  go(current - 1); 
+  e.currentTarget.blur(); // Blur to prevent keyboard trapping
+});
+document.getElementById('nextBtn').addEventListener('click', (e) => { 
+  go(current + 1); 
+  e.currentTarget.blur(); 
+});
 
-document.addEventListener('keydown', e=>{
-  if(e.target.isContentEditable) return;
-  if(e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
-  if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){go(current+1);e.preventDefault()}
-  if(e.key==='ArrowLeft'||e.key==='PageUp'){go(current-1);e.preventDefault()}
-  if(e.key==='Home'){go(0)}
-  if(e.key==='End'){go(slidesEls.length-1)}
+document.addEventListener('keydown', (e) => {
+  if (e.target.isContentEditable) return;
+  if (e.target.tagName === 'INPUT') return;
+  
+  if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+    go(current + 1);
+    e.preventDefault();
+  } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+    go(current - 1);
+    e.preventDefault();
+  } else if (e.key === ' ') {
+    // Let the button click handle spacebar if a button is focused.
+    // Otherwise, spacebar moves to the next slide.
+    if (e.target.tagName !== 'BUTTON') {
+      go(current + 1);
+      e.preventDefault();
+    }
+  } else if (e.key === 'Home') {
+    go(0);
+  } else if (e.key === 'End') {
+    go(slidesEls.length - 1);
+  }
 });
 
 /* ============== CONFETTI ============== */
@@ -1226,15 +1273,16 @@ function burstConfetti(){
 
 /* ============== REVEAL LOGO NAME ============== */
 document.addEventListener('click', e=>{
-  if(e.target.classList.contains('reveal-btn')){
-    const btn = e.target;
-    const revealText = btn.nextElementSibling;
+  const revealBtn = e.target.closest('.reveal-btn');
+  if(revealBtn){
+    revealBtn.blur();
+    const revealText = revealBtn.nextElementSibling;
     if(revealText.classList.contains('visible')){
       revealText.classList.remove('visible');
-      btn.textContent = '▶ REVEAL';
+      revealBtn.textContent = '▶ REVEAL';
     } else {
       revealText.classList.add('visible');
-      btn.textContent = '▼ HIDE';
+      revealBtn.textContent = '▼ HIDE';
     }
   }
 });
@@ -1250,19 +1298,65 @@ document.addEventListener('input', e => {
   }
 });
 
-/* ============== CLICK TO UPLOAD (IMAGES) ============== */
+/* ============== CLICK HANDLERS (UPLOADS & PLAY) ============== */
 const fileInput = document.getElementById('fileInput');
+const videoInput = document.getElementById('videoInput');
 let activeTarget = null;
+let activeVideoTarget = null;
 
-document.addEventListener('click', e=>{
+document.addEventListener('click', e => {
+  // 1. Handle Play Button Click
+  const playBtn = e.target.closest('.play-btn');
+  if(playBtn) {
+    playBtn.blur();
+    const videoFrame = playBtn.previousElementSibling;
+    const video = videoFrame ? videoFrame.querySelector('video') : null;
+    
+    if (!video) {
+      activeVideoTarget = videoFrame;
+      videoInput.click();
+      return;
+    }
+
+    if (video.paused) {
+      video.play();
+      playBtn.textContent = '❚❚ PAUSE';
+    } else {
+      video.pause();
+      playBtn.textContent = '▶ PLAY';
+    }
+    return;
+  }
+
+  // 2. Handle Image Upload Click
   const target = e.target.closest('.upload-target');
-  if(!target) return;
-  if(e.target.isContentEditable) return; 
-  e.stopPropagation();
-  activeTarget = target;
-  fileInput.click();
+  if(target) {
+    if(e.target.isContentEditable) return; 
+    activeTarget = target;
+    fileInput.click();
+    return;
+  }
+
+  // 3. Handle Video Frame Click (Upload)
+  const vTarget = e.target.closest('.video-target');
+  if(vTarget) {
+    activeVideoTarget = vTarget;
+    videoInput.click();
+    return;
+  }
 });
 
+/* ============== HANDLE VIDEO ENDED EVENT ============== */
+document.addEventListener('ended', e => {
+  if(e.target.classList.contains('uploaded-video')) {
+    const playBtn = e.target.closest('.video-frame').nextElementSibling;
+    if(playBtn && playBtn.classList.contains('play-btn')) {
+      playBtn.textContent = '▶ PLAY';
+    }
+  }
+}, true);
+
+/* ============== HANDLE IMAGE UPLOADS ============== */
 function handleImageUpload(file, target) {
   if(!file || !file.type.startsWith('image/')) return;
   const reader = new FileReader();
@@ -1285,31 +1379,21 @@ fileInput.addEventListener('change', e=>{
   fileInput.value = '';
 });
 
-/* ============== CLICK TO UPLOAD (VIDEOS) ============== */
-const videoInput = document.getElementById('videoInput');
-let activeVideoTarget = null;
-
-document.addEventListener('click', e=>{
-  const target = e.target.closest('.video-target');
-  if(!target) return;
-  e.stopPropagation();
-  activeVideoTarget = target;
-  videoInput.click();
-});
-
+/* ============== HANDLE VIDEO UPLOADS ============== */
 function handleVideoUpload(file, target) {
   if(!file || !file.type.startsWith('video/')) return;
   
-  // Create a URL to display the video immediately
   const videoURL = URL.createObjectURL(file);
-  const newHtml = `<video src="${videoURL}" controls autoplay playsinline class="uploaded-video"></video><div class="upload-hint">⬆ CLICK TO REPLACE VIDEO</div>`;
+  const newHtml = `<video src="${videoURL}" playsinline class="uploaded-video"></video><div class="upload-hint">⬆ CLICK TO REPLACE VIDEO</div>`;
   target.innerHTML = newHtml;
   
   const key = target.dataset.uploadKey;
   if(key) {
-    // Save the raw file (Blob) to IndexedDB so it persists
     saveVideoToDB(key, file);
   }
+  
+  const playBtn = target.parentElement.querySelector('.play-btn');
+  if (playBtn) playBtn.textContent = '▶ PLAY';
 }
 
 videoInput.addEventListener('change', e=>{
@@ -1319,7 +1403,7 @@ videoInput.addEventListener('change', e=>{
   videoInput.value = '';
 });
 
-// Drag and drop support
+/* ============== DRAG AND DROP SUPPORT ============== */
 document.addEventListener('dragover', e=>{
   e.preventDefault();
 });
