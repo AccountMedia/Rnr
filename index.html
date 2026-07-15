@@ -1123,6 +1123,7 @@ ready2.innerHTML = `
 game2.parentNode.insertBefore(ready2, game2.nextSibling);
 
 // 12 Video Slides
+let videoInsertAfter = ready2;
 for(let i=0; i<12; i++) {
   const vSlide = document.createElement('section');
   vSlide.className = 'slide';
@@ -1141,7 +1142,8 @@ for(let i=0; i<12; i++) {
       <button class="play-btn">▶ PLAY</button>
     </div>
   `;
-  ready2.parentNode.insertBefore(vSlide, ready2.nextSibling);
+  videoInsertAfter.parentNode.insertBefore(vSlide, videoInsertAfter.nextSibling);
+  videoInsertAfter = vSlide;
 }
 
 /* ============== INJECT QA MASTER SLIDES (45-50) ============== */
