@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Account Media — Rewards & Recognition</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0420;
+    --bg2:#1a0838;
+    --pink:#ff2d95;
+    --cyan:#19d3ff;
+    --yellow:#ffd23f;
+    --green:#3fff7e;
+    --purple:#a64dff;
+    --orange:#ff7b29;
+    --ink:#ffffff;
+    --dim:#b9a9e0;
+    --grid:rgba(166,77,255,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:#000;color:var(--ink);font-family:'VT323',monospace}
+  body{
+    background:
+      radial-gradient(ellipse at 50% 0%, #2a0d5e 0%, #0b0420 55%, #050214 100%);
+  }
+  /* CRT scanlines + vignette */
+  .crt::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:9998;
+    background:repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0 2px, rgba(0,0,0,.22) 2px 4px);
+    mix-blend-mode:multiply;
+  }
+  .crt::after{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:9999;
+    background:radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,.65) 100%);
+  }
+  /* Pixel grid background */
+  .grid-bg{
+    position:fixed;inset:0;z-index:0;pointer-events:none;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size:32px 32px;
+    mask-image:radial-gradient(ellipse at center, #000 60%, transparent 100%);
+  }
+  /* Floating pixel stars */
+  .stars{position:fixed;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+  .star{position:absolute;width:4px;height:4px;background:var(--cyan);box-shadow:0 0 8px currentColor;animation:float 8s linear infinite}
+  .star:nth-child(2n){background:var(--pink)}
+  .star:nth-child(3n){background:var(--yellow)}
+  .star:nth-child(4n){background:var(--green);width:6px;height:6px}
+  @keyframes float{
+    0%{transform:translateY(110vh) scale(1);opacity:0}
+    10%{opacity:1}
+    90%{opacity:1}
+    100%{transform:translateY(-10vh) scale(.4);opacity:0}
+  }
+
+  /* Presentation stage */
+  .stage{
+    position:relative;z-index:2;
+    width:100vw;height:100vh;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .slide{
+    position:absolute;inset:0;
+    display:none;
+    flex-direction:column;align-items:center;justify-content:center;
+    padding:60px 80px;
+    opacity:0;
+  }
+  .slide.active{display:flex;animation:slideIn .5s steps(8) forwards}
+  @keyframes slideIn{
+    0%{opacity:0;transform:scale(1.06) translateY(20px);filter:blur(6px)}
+    100%{opacity:1;transform:scale(1) translateY(0);filter:blur(0)}
+  }
+
+  /* Pixel borders */
+  .pix{image-rendering:pixelated;image-rendering:crisp-edges}
+  .pixel-box{
+    position:relative;
+    background:linear-gradient(180deg, rgba(255,45,149,.08), rgba(25,211,255,.05));
+    border:4px solid var(--ink);
+    box-shadow:
+      0 0 0 4px var(--bg),
+      0 0 0 8px var(--ink),
+      0 0 40px rgba(255,45,149,.35),
+      inset 0 0 40px rgba(166,77,255,.15);
+    padding:42px 52px;
+  }
+  .pixel-box::before, .pixel-box::after{
+    content:"";position:absolute;width:16px;height:16px;background:var(--yellow);
+    box-shadow:0 0 12px var(--yellow);
+  }
+  .pixel-box::before{top:-10px;left:-10px}
+  .pixel-box::after{bottom:-10px;right:-10px}
+
+  /* Headings */
+  .title-xl{
+    font-family:'Press Start 2P',monospace;
+    font-size:clamp(28px,5vw,72px);
+    line-height:1.2;
+    text-align:center;
+    color:var(--ink);
+    text-shadow:
+      4px 4px 0 var(--pink),
+      8px 8px 0 var(--purple),
+      0 0 30px rgba(255,45,149,.6);
+    letter-spacing:2px;
+  }
+  .title-md{
+    font-family:'Press Start 2P',monospace;
+    font-size:clamp(18px,2.6vw,32px);
+    color:var(--yellow);
+    text-shadow:3px 3px 0 var(--pink), 0 0 20px rgba(255,210,63,.5);
+    letter-spacing:1px;
+  }
+  .title-sm{
+    font-family:'Press Start 2P',monospace;
+    font-size:14px;color:var(--cyan);
+    text-shadow:2px 2px 0 var(--purple);
+    letter-spacing:1px;
+  }
+  .body-lg{font-size:clamp(22px,2vw,30px);line-height:1.5;color:var(--ink)}
+  .body-md{font-size:clamp(18px,1.5vw,24px);line-height:1.5;color:var(--dim)}
+  .blink{animation:blink 1s steps(2) infinite}
+  @keyframes blink{50%{opacity:0}}
+
+  /* Title slide */
+  .title-screen{
+    text-align:center;
+  }
+  .title-screen .tag{
+    font-family:'Press Start 2P',monospace;
+    font-size:12px;color:var(--green);
+    margin-bottom:24px;letter-spacing:3px;
+    text-shadow:0 0 12px var(--green);
+  }
+  .title-screen .sub{
+    margin-top:30px;font-size:24px;color:var(--cyan);letter-spacing:4px;
+  }
+  .title-screen .press{
+    margin-top:60px;font-family:'Press Start 2P',monospace;
+    font-size:14px;color:var(--yellow);
+    animation:blink 1.2s steps(2) infinite;
+  }
+  .title-deco{
+    display:flex;justify-content:center;gap:18px;margin-top:50px;
+  }
+  .deco-square{width:24px;height:24px;background:var(--pink);box-shadow:0 0 14px var(--pink);animation:bounce 1.2s steps(4) infinite}
+  .deco-square:nth-child(2){background:var(--cyan);animation-delay:.15s}
+  .deco-square:nth-child(3){background:var(--yellow);animation-delay:.3s}
+  .deco-square:nth-child(4){background:var(--green);animation-delay:.45s}
+  .deco-square:nth-child(5){background:var(--purple);animation-delay:.6s}
+  @keyframes bounce{50%{transform:translateY(-12px)}}
+
+  /* Mechanics */
+  .mech-list{list-style:none;display:flex;flex-direction:column;gap:18px;margin-top:30px}
+  .mech-list li{
+    font-size:24px;color:var(--ink);
+    padding:14px 20px;
+    background:rgba(25,211,255,.06);
+    border-left:6px solid var(--cyan);
+    display:flex;align-items:center;gap:18px;
+  }
+  .mech-list li b{color:var(--yellow);font-family:'Press Start 2P',monospace;font-size:14px;min-width:90px}
+  .mech-list li .val{color:var(--ink);font-size:22px}
+  .mech-list li .pink{color:var(--pink)}
+  .mech-list li .green{color:var(--green)}
+
+  /* Ready slide */
+  .ready-big{
+    font-family:'Press Start 2P',monospace;
+    font-size:clamp(48px,9vw,140px);
+    color:var(--yellow);
+    text-shadow:
+      6px 6px 0 var(--pink),
+      12px 12px 0 var(--purple),
+      0 0 50px rgba(255,210,63,.6);
+    animation:readyPulse 1s steps(4) infinite;
+  }
+  @keyframes readyPulse{
+    0%,100%{transform:scale(1)}
+    50%{transform:scale(1.04)}
+  }
+  .ready-sub{margin-top:40px;font-size:28px;color:var(--cyan);letter-spacing:6px}
+
+  /* Logo slides */
+  .logo-stage{
+    display:flex;flex-direction:column;align-items:center;gap:30px;
+  }
+  .round-banner{
+    display:flex;align-items:center;gap:20px;
+    font-family:'Press Start 2P',monospace;font-size:16px;
+  }
+  .round-tag{
+    background:var(--pink);color:#fff;padding:10px 18px;
+    box-shadow:4px 4px 0 var(--purple);
+  }
+  .prize-tag{
+    background:var(--yellow);color:#000;padding:10px 18px;
+    box-shadow:4px 4px 0 var(--orange);
+  }
+  .logo-frame{
+    width:min(420px,55vmin);height:min(420px,55vmin);
+    background:#000;
+    border:6px solid var(--ink);
+    box-shadow:
+      0 0 0 6px var(--pink),
+      0 0 0 12px var(--ink),
+      0 0 60px rgba(255,45,149,.5),
+      inset 0 0 80px rgba(166,77,255,.2);
+    display:flex;align-items:center;justify-content:center;
+    position:relative;
+  }
+  .logo-frame::before{
+    content:"";position:absolute;inset:0;
+    background:repeating-linear-gradient(to bottom, transparent 0 4px, rgba(255,255,255,.04) 4px 5px);
+    pointer-events:none;
+  }
+  .logo-svg{width:75%;height:75%;image-rendering:pixelated}
+  .logo-hint{
+    font-size:22px;color:var(--cyan);letter-spacing:3px;
+    font-family:'Press Start 2P',monospace;font-size:10px;
+  }
+  .answer-input{
+    margin-top:10px;
+    background:#000;border:4px solid var(--cyan);
+    padding:14px 22px;font-family:'VT323',monospace;font-size:22px;
+    color:var(--green);letter-spacing:2px;
+    box-shadow:0 0 20px rgba(25,211,255,.4);
+    min-width:340px;text-align:center;
+  }
+
+  /* Winner / Performer */
+  .performer-card{
+    display:flex;flex-direction:column;align-items:center;gap:24px;
+    text-align:center;
+  }
+  .performer-photo{
+    width:240px;height:240px;
+    background:#000;
+    border:6px solid var(--yellow);
+    box-shadow:
+      0 0 0 6px var(--ink),
+      0 0 0 12px var(--pink),
+      0 0 60px rgba(255,210,63,.5);
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;position:relative;
+  }
+  .performer-photo svg{width:80%;height:80%}
+  .performer-name{
+    font-family:'Press Start 2P',monospace;font-size:clamp(20px,3vw,36px);
+    color:var(--yellow);
+    text-shadow:4px 4px 0 var(--pink);
+  }
+  .performer-rank{
+    font-family:'Press Start 2P',monospace;font-size:16px;
+    color:var(--green);
+    background:rgba(63,255,126,.1);
+    padding:10px 20px;
+    border:3px solid var(--green);
+    box-shadow:0 0 20px rgba(63,255,126,.3);
+  }
+  .crown{font-size:40px;margin-bottom:-10px;filter:drop-shadow(0 0 12px var(--yellow))}
+
+  /* QA Masters grid */
+  .qa-grid{display:flex;gap:60px;flex-wrap:wrap;justify-content:center}
+  .qa-card{
+    display:flex;flex-direction:column;align-items:center;gap:16px;
+    text-align:center;
+  }
+  .qa-photo{
+    width:200px;height:200px;background:#000;
+    border:5px solid var(--cyan);
+    box-shadow:
+      0 0 0 5px var(--ink),
+      0 0 0 10px var(--purple),
+      0 0 40px rgba(25,211,255,.4);
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;position:relative;
+  }
+  .qa-photo svg{width:78%;height:78%}
+  .qa-photo::after{
+    content:"";position:absolute;inset:0;
+    background:repeating-linear-gradient(to bottom, transparent 0 3px, rgba(0,0,0,.15) 3px 4px);
+    pointer-events:none;
+  }
+  .qa-name{
+    font-family:'Press Start 2P',monospace;font-size:14px;
+    color:var(--yellow);text-shadow:2px 2px 0 var(--pink);
+  }
+  .qa-title{font-size:18px;color:var(--cyan);letter-spacing:2px}
+  .qa-banner{
+    font-family:'Press Start 2P',monospace;font-size:18px;
+    color:var(--green);margin-bottom:40px;letter-spacing:2px;
+    text-shadow:3px 3px 0 var(--purple);
+  }
+
+  /* Thank you */
+  .thanks-big{
+    font-family:'Press Start 2P',monospace;
+    font-size:clamp(48px,8vw,120px);
+    color:var(--green);
+    text-shadow:
+      6px 6px 0 var(--cyan),
+      12px 12px 0 var(--purple),
+      0 0 50px rgba(63,255,126,.6);
+  }
+  .thanks-sub{margin-top:40px;font-size:26px;color:var(--ink);max-width:700px;text-align:center;line-height:1.4}
+
+  /* Navigation */
+  .nav{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    z-index:10000;
+    display:flex;align-items:center;gap:20px;
+    background:rgba(0,0,0,.7);
+    padding:12px 20px;
+    border:3px solid var(--cyan);
+    box-shadow:0 0 20px rgba(25,211,255,.4), 4px 4px 0 var(--pink);
+  }
+  .nav button{
+    background:var(--pink);color:#fff;
+    font-family:'Press Start 2P',monospace;font-size:12px;
+    border:none;padding:10px 14px;cursor:pointer;
+    box-shadow:3px 3px 0 var(--purple);
+    transition:transform .1s;
+  }
+  .nav button:hover{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--purple)}
+  .nav button:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--purple)}
+  .nav button.next{background:var(--green);color:#000;box-shadow:3px 3px 0 var(--cyan)}
+  .nav .counter{
+    font-family:'Press Start 2P',monospace;font-size:14px;color:var(--yellow);
+    letter-spacing:2px;min-width:80px;text-align:center;
+  }
+
+  /* Progress bar */
+  .progress{
+    position:fixed;top:0;left:0;height:6px;background:var(--green);
+    z-index:10000;transition:width .4s ease;
+    box-shadow:0 0 12px var(--green);
+  }
+
+  /* HUD top */
+  .hud{
+    position:fixed;top:18px;left:24px;z-index:10000;
+    font-family:'Press Start 2P',monospace;font-size:11px;
+    color:var(--cyan);text-shadow:2px 2px 0 var(--purple);
+    display:flex;flex-direction:column;gap:4px;
+  }
+  .hud .coin{color:var(--yellow)}
+  .hud-right{
+    position:fixed;top:18px;right:24px;z-index:10000;
+    font-family:'Press Start 2P',monospace;font-size:11px;
+    color:var(--pink);text-shadow:2px 2px 0 var(--purple);
+    text-align:right;
+  }
+
+  /* Confetti pixels */
+  .confetti{position:fixed;inset:0;pointer-events:none;z-index:9997;overflow:hidden}
+  .confetti span{
+    position:absolute;width:10px;height:10px;
+    top:-20px;
+    animation:fall 3s linear forwards;
+  }
+  @keyframes fall{
+    to{transform:translateY(110vh) rotate(360deg);opacity:0}
+  }
+
+  /* Glitch on slide change */
+  .glitch{animation:glitch .5s steps(4)}
+  @keyframes glitch{
+    0%{clip-path:inset(0 0 0 0);transform:translate(0)}
+    20%{clip-path:inset(20% 0 40% 0);transform:translate(-6px,2px)}
+    40%{clip-path:inset(60% 0 10% 0);transform:translate(6px,-2px)}
+    60%{clip-path:inset(10% 0 70% 0);transform:translate(-4px,4px)}
+    80%{clip-path:inset(40% 0 30% 0);transform:translate(4px,-4px)}
+    100%{clip-path:inset(0 0 0 0);transform:translate(0)}
+  }
+
+  /* Song game slide */
+  .song-anim{
+    display:flex;gap:8px;align-items:flex-end;height:120px;margin:30px 0;
+  }
+  .bar{width:14px;background:var(--pink);box-shadow:0 0 12px currentColor;animation:eq 1s steps(8) infinite}
+  .bar:nth-child(2){background:var(--cyan);animation-delay:.1s}
+  .bar:nth-child(3){background:var(--yellow);animation-delay:.2s}
+  .bar:nth-child(4){background:var(--green);animation-delay:.3s}
+  .bar:nth-child(5){background:var(--purple);animation-delay:.4s}
+  .bar:nth-child(6){background:var(--orange);animation-delay:.5s}
+  .bar:nth-child(7){background:var(--pink);animation-delay:.6s}
+  .bar:nth-child(8){background:var(--cyan);animation-delay:.7s}
+  .bar:nth-child(9){background:var(--yellow);animation-delay:.8s}
+  .bar:nth-child(10){background:var(--green);animation-delay:.9s}
+  @keyframes eq{0%,100%{height:30px}50%{height:110px}}
+
+  /* Pixel avatar SVG style */
+  .avatar-bg{fill:#1a0838}
+
+  @media (max-width:768px){
+    .slide{padding:30px 20px}
+    .qa-grid{gap:30px}
+    .qa-photo,.performer-photo{width:140px;height:140px}
+    .logo-frame{width:80vmin;height:80vmin}
+  }
+</style>
+</head>
+<body class="crt">
+  <div class="grid-bg"></div>
+  <div class="stars" id="stars"></div>
+  <div class="progress" id="progress"></div>
+
+  <div class="hud">
+    <div>PLAYER 1</div>
+    <div class="coin">★ <span id="hudRound">01</span> / 38</div>
+  </div>
+  <div class="hud-right">
+    <div>AM RECOGNITION</div>
+    <div style="color:var(--green)">JUNE 2026</div>
+  </div>
+
+  <div class="stage" id="stage">
+
+    <!-- Slide 1: Title -->
+    <section class="slide active" data-slide="1">
+      <div class="title-screen">
+        <div class="tag">★ INSERT COIN ★</div>
+        <h1 class="title-xl">ACCOUNT MEDIA<br/>REWARDS &amp;<br/>RECOGNITION</h1>
+        <div class="sub">JUNE · 2026</div>
+        <div class="title-deco">
+          <div class="deco-square"></div>
+          <div class="deco-square"></div>
+          <div class="deco-square"></div>
+          <div class="deco-square"></div>
+          <div class="deco-square"></div>
+        </div>
+        <div class="press">PRESS → TO START</div>
+      </div>
+    </section>
+
+    <!-- Slide 2: Game 1 Mechanics -->
+    <section class="slide" data-slide="2">
+      <div class="pixel-box" style="max-width:780px">
+        <div style="display:flex;align-items:center;gap:16px;justify-content:center;margin-bottom:10px">
+          <span class="title-sm">STAGE 01</span>
+        </div>
+        <h2 class="title-md" style="text-align:center">GUESS THE LOGO</h2>
+        <ul class="mech-list">
+          <li><b>ROUNDS</b><span class="val">25 stages of pixelated logos</span></li>
+          <li><b>SPEED</b><span class="val">First correct answer in chat <span class="green">wins the round</span></span></li>
+          <li><b>REWARD</b><span class="val">Every correct answer = <span class="pink">₱100</span></span></li>
+          <li><b>FORMAT</b><span class="val">Abbreviation or full name accepted</span></li>
+          <li><b>LIMIT</b><span class="val">Max <span class="pink">2 wins</span> per agent</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Slide 3: Ready -->
+    <section class="slide" data-slide="3">
+      <div style="text-align:center">
+        <div class="ready-big">READY?</div>
+        <div class="ready-sub">▶ ▶ ▶</div>
+        <div style="margin-top:60px;font-size:22px;color:var(--dim)" class="blink">LOADING NEXT STAGE...</div>
+      </div>
+    </section>
+
+    <!-- Slides 4-29: Logo slides (26 logos) -->
+    <!-- Generated below by JS for cleanliness -->
+
+    <!-- Slide 30: Top Performer -->
+    <section class="slide" data-slide="30">
+      <div class="performer-card">
+        <div class="crown">👑</div>
+        <div class="title-sm" style="color:var(--yellow)">JUNE 2026 — TOP PERFORMER</div>
+        <div class="performer-photo" id="performerPhoto"></div>
+        <div class="performer-name">FAYE PAULINE PAMPO</div>
+        <div class="performer-rank">★ TOP 1 — 99.12% ★</div>
+      </div>
+    </section>
+
+    <!-- Slide 31: Game 2 -->
+    <section class="slide" data-slide="31">
+      <div class="pixel-box" style="max-width:820px">
+        <div style="text-align:center"><span class="title-sm">STAGE 02</span></div>
+        <h2 class="title-md" style="text-align:center;margin-top:10px">WAIT... I KNOW THIS SONG!</h2>
+        <div class="song-anim">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+          <div class="bar"></div><div class="bar"></div>
+        </div>
+        <ul class="mech-list">
+          <li><b>CLIP</b><span class="val">20-second audio sample per song</span></li>
+          <li><b>INPUT</b><span class="val">Type the song title the moment you recognize it</span></li>
+          <li><b>SCORING</b><span class="val">Faster guess = <span class="green">more points</span></span></li>
+          <li><b>WINNER</b><span class="val">Highest total points at the end wins</span></li>
+          <li><b>NOTE</b><span class="val">Run on a third-party platform</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Slides 32-37: QA Masters (2 per slide) -->
+    <!-- Generated below -->
+
+    <!-- Slide 38: Thank You -->
+    <section class="slide" data-slide="38">
+      <div style="text-align:center">
+        <div class="thanks-big">THANK YOU!</div>
+        <div class="thanks-sub">Thanks for playing — congratulations to every winner and awardee this cycle.</div>
+        <div class="title-deco" style="margin-top:50px">
+          <div class="deco-square"></div>
+          <div class="deco-square"></div>
+          <div class="deco-square"></div>
+          <div class="deco-square"></div>
+          <div class="deco-square"></div>
+        </div>
+        <div style="margin-top:40px;font-size:18px;color:var(--cyan)" class="blink">▶ GAME COMPLETE ▶</div>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="confetti" id="confetti"></div>
+
+  <div class="nav">
+    <button id="prevBtn">◄ PREV</button>
+    <div class="counter" id="counter">01 / 38</div>
+    <button id="nextBtn" class="next">NEXT ►</button>
+  </div>
+
+<script>
+/* ============== STARFIELD ============== */
+const stars = document.getElementById('stars');
+for(let i=0;i<40;i++){
+  const s=document.createElement('div');
+  s.className='star';
+  s.style.left=Math.random()*100+'vw';
+  s.style.animationDelay=Math.random()*8+'s';
+  s.style.animationDuration=(6+Math.random()*6)+'s';
+  stars.appendChild(s);
+}
+
+/* ============== PIXEL ART LOGOS (SVG) ============== */
+/* Each logo: a simplified pixel-art rendition using rect grid */
+function px(rows, palette){
+  // rows: array of strings, each char maps to palette color
+  const h = rows.length, w = rows[0].length;
+  const cell = 100 / Math.max(w,h);
+  let rects = '';
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const c = rows[y][x];
+      if(c==='.'||c===' ') continue;
+      const color = palette[c] || '#fff';
+      rects += `<rect x="${x*cell}" y="${y*cell}" width="${cell}" height="${cell}" fill="${color}"/>`;
+    }
+  }
+  return `<svg class="logo-svg pix" viewBox="0 0 ${w*cell} ${h*cell}" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">${rects}</svg>`;
+}
+
+const logos = [
+  {name:'APPLE', svg: px([
+    '...AAAA...',
+    '..AA..AA..',
+    '.AA....AA.',
+    'AA......AA',
+    'AA......AA',
+    'AA......AA',
+    'AAA....AAA',
+    'AAAA..AAAA',
+    '.AAAAAAAA.',
+    '..AAAAAA..',
+    '...AAAA...',
+  ], {A:'#ffffff'})},
+
+  {name:'NIKE', svg: px([
+    '..........KKKK',
+    '........KKK...',
+    '......KKK.....',
+    '....KKK.......',
+    '..KKK.........',
+    'KKK...........',
+    'K.............',
+  ], {K:'#ff2d95'})},
+
+  {name:'MCDONALDS', svg: px([
+    'YY........YY',
+    'YYY......YYY',
+ '.YYYY....YYYY.',
+ 'YYYYYY..YYYYYY',
+ 'YYYYYYYYYYYYYY',
+ '.YYYYYYYYYYYY.',
+ '..YYYYYYYYYY..',
+  ], {Y:'#ffd23f'})},
+
+  {name:'COCA-COLA', svg: px([
+    'RR..RR..RR..RR',
+    'RRR.RR..RR.RRR',
+    'RRRRRR.RRRRRRR',
+    'RR.RRRRRR.RRRR',
+    'RR..RR.RR..RRR',
+    'RR..RR.RR..RRR',
+  ], {R:'#ff2d2d'})},
+
+  {name:'GOOGLE', svg: px([
+    'BB...GG...RR',
+    'BBB.GGGG.RRRR',
+    'BBB.GG.RRRRRR',
+    'BB...GGGG.YY',
+    'BB.....GG.YY',
+  ], {B:'#4285F4',G:'#34A853',R:'#EA4335',Y:'#FBBC05'})},
+
+  {name:'MICROSOFT', svg: px([
+    'RRRR.GGGG',
+    'RRRR.GGGG',
+    'BBBB.YYYY',
+    'BBBB.YYYY',
+  ], {R:'#f25022',G:'#7fba00',B:'#00a4ef',Y:'#ffb900'})},
+
+  {name:'FACEBOOK', svg: px([
+    '...BBBBBBB...',
+    '..BBBBBBBBB..',
+    '.BBBBBBBBBBB.',
+    'BBBWWBBBWWBBB',
+    'BBBWB BBB WB B',
+    'BBBBBBBBBBBBB',
+    '.BBBBBBBBBBB.',
+    '..BBBBBBBBB..',
+    '...BBBBBBB...',
+  ], {B:'#1877f2',W:'#ffffff'})},
+
+  {name:'TWITTER', svg: px([
+    'CCC....CCC',
+    'CCCC..CCCC',
+    '.CCCCCCCC.',
+    '..CCCCCC..',
+    '...CCCC...',
+    '....CC....',
+  ], {C:'#1da1f2'})},
+
+  {name:'INSTAGRAM', svg: px([
+    'PPPPPPPPPP',
+    'P........P',
+    'P.WW...W.P',
+    'P..WWW...P',
+    'P...W....P',
+    'P........P',
+    'PPPPPPPPPP',
+  ], {P:'#E1306C',W:'#ffffff'})},
+
+  {name:'YOUTUBE', svg: px([
+    'RRRRRRRRRRRR',
+    'RRRRRRRRRRRR',
+    'RRRRWWWWRRRR',
+    'RRRW>>>>WRRR',
+    'RRRRWWWWRRRR',
+    'RRRRRRRRRRRR',
+  ], {R:'#ff0000',W:'#ffffff','>':'#ff0000'})},
+
+  {name:'AMAZON', svg: px([
+    'OOOO...OOOO',
+    'O..O...O..O',
+    'OOOO...OOOO',
+    '...........',
+    '....YYY....',
+    '...Y...Y...',
+  ], {O:'#ff9900',Y:'#ff9900'})},
+
+  {name:'STARBUCKS', svg: px([
+    '....GGG....',
+    '...G...G...',
+    '..GGGGGGG..',
+    '.G.G.G.G.G.',
+    '..G.G.G.G..',
+    '...G.G.G...',
+    '....G.G....',
+  ], {G:'#00704A'})},
+
+  {name:'ADIDAS', svg: px([
+    '..........TTT',
+    '........TTT..',
+    '......TTT....',
+    '....TTT......',
+    '..TTT........',
+    'TTT..........',
+  ], {T:'#000000'})},
+
+  {name:'NETFLIX', svg: px([
+    'RRRR..RRRR',
+    'RRRRR.RRRR',
+    'RRRRRRRRRR',
+    'RRRR.RRRRR',
+    'RRRR..RRRR',
+  ], {R:'#e50914'})},
+
+  {name:'DISNEY', svg: px([
+    'WWWWWWWWWWWW',
+    'W..W..W..W.W',
+    'W.W.W.W.W.W.',
+    'W..W..W..W.W',
+    'W.W.W.W.W.W.',
+    'W..W..W..W.W',
+  ], {W:'#ffffff'})},
+
+  {name:'POKEMON', svg: px([
+    '...YYYYYYY...',
+    '.YYBBBBBBBYY.',
+    'YYBBWWBWWBBYY',
+    'YYBBWWBWWBBYY',
+    'YYBBBBBBBBBYY',
+    'YYBBBYYYBBBYY',
+    '.YYBBBBBBBYY.',
+    '...YYYYYYY...',
+  ], {Y:'#ffd23f',B:'#3b4cca',W:'#ffffff'})},
+
+  {name:'NINTENDO', svg: px([
+    'RRRRRRRRRRRRRR',
+    'R............R',
+    'R..RRRRRR.R..R',
+    'R.RRRRRRRRR.R',
+    'R..RRRRRR.R..R',
+    'R............R',
+    'RRRRRRRRRRRRRR',
+  ], {R:'#e60012'})},
+
+  {name:'PLAYSTATION', svg: px([
+    '...BBBB...',
+    '..BBBBBB..',
+    '.BBB..BBB.',
+    'BBBB..BBBB',
+    'BBB....BBB',
+    '.BB....BB.',
+    '..B....B..',
+  ], {B:'#0070d1'})},
+
+  {name:'XBOX', svg: px([
+    'GGG....GGG',
+    'GGGG..GGGG',
+    '.GGGGGGGG.',
+    '..GGGGGG..',
+    '.GGGGGGGG.',
+    'GGGG..GGGG',
+    'GGG....GGG',
+  ], {G:'#107c10'})},
+
+  {name:'TIKTOK', svg: px([
+    '....CCCC....',
+    '...CCCCCC...',
+    '..CCC..CCC..',
+    '.CCC....CCC.',
+    'CCC......CCC',
+    '.CCC....CCC.',
+    '..CCC..CCC..',
+    '...CCCCCC...',
+  ], {C:'#000000'})},
+
+  {name:'SPOTIFY', svg: px([
+    '...GGGGG...',
+    '.GGGGGGGGG.',
+    'GGG.GG.GGGG',
+    'GGGGGGGGGGG',
+    'GG.GG.GG.GG',
+    '.GGGGGGGGG.',
+    '...GGGGG...',
+  ], {G:'#1db954'})},
+
+  {name:'WHATSAPP', svg: px([
+    '...GGGGG...',
+    '..GGGGGGG..',
+    '.GGGWWWGGG.',
+    'GGGWGWGWWWG',
+    'GGGWWGGGGGG',
+    '.GGGGGGGGG.',
+    '..GGGGGGG..',
+    '...GGGGG...',
+  ], {G:'#25d366',W:'#ffffff'})},
+
+  {name:'SNAPCHAT', svg: px([
+    '...YYYYY...',
+    '..YYY.YYY..',
+    '.YYYYYYYYY.',
+    'YY.YYYYY.YY',
+    'YYYYYYYYYYY',
+    '.YY.YYY.YY.',
+    '..YYYYYYY..',
+  ], {Y:'#fffc00'})},
+
+  {name:'MASTERCARD', svg: px([
+    '..RRR...OOO..',
+    '.RRRRR.OOOOO.',
+    'RRRRRROOOOOOO',
+    '.RRRRROOOOOO.',
+    '..RRR...OOO..',
+  ], {R:'#eb001b',O:'#f79e1b'})},
+
+  {name:'FEDEX', svg: px([
+    'PPPP.EEE.X.X',
+    'P..P.E...X.X',
+    'PPPP.EE..XX.',
+    'P....E...X.X',
+    'P....EEE.X.X',
+  ], {P:'#660099',E:'#ff6600',X:'#ff6600'})},
+
+  {name:'PEPSI', svg: px([
+    '...BBBBB...',
+    '..BBBBBBB..',
+    '.BBRBBBBRBB',
+    'BBRRBBBBRRB',
+    'BBRBBBBRRBB',
+    '.BBRBBBRBB.',
+    '..BBBBBBB..',
+  ], {B:'#004b93',R:'#e32934'})},
+];
+
+/* ============== AVATAR GENERATOR ============== */
+function avatar(seed, hue1, hue2){
+  // Deterministic pixel face based on seed
+  let s = seed.split('').reduce((a,c)=>a+c.charCodeAt(0),0);
+  const rng = ()=>{s=(s*9301+49297)%233280;return s/233280};
+  const colors = ['#ff2d95','#19d3ff','#ffd23f','#3fff7e','#a64dff','#ff7b29'];
+  const c1 = colors[Math.floor(rng()*colors.length)];
+  const c2 = colors[Math.floor(rng()*colors.length)];
+  const skin = '#ffd9b3';
+  const hair = ['#3a2820','#8b4513','#ff2d95','#19d3ff','#ffd23f','#3fff7e'][Math.floor(rng()*6)];
+  let rows = [];
+  const face = [
+    '....HHHH....',
+    '...HHHHHH...',
+    '..HHSSSSHH..',
+    '.HHSSSSSSHH.',
+    'HHSSSeSeSSSH',
+    'HHSSSeSeSSSH',
+    'HHSSSmmSSSSH',
+    '.HSSSSSSSSH.',
+    '..SSSSSSSS..',
+    '...SSSSSS...',
+    '....SSSS....',
+  ];
+  const palette = {H:hair, S:skin, e:'#000', m:'#ff2d95'};
+  return px(face, palette);
+}
+
+/* ============== INJECT LOGO SLIDES (4-29) ============== */
+const stage = document.getElementById('stage');
+const thankYou = document.querySelector('[data-slide="38"]');
+
+logos.forEach((logo, i) => {
+  const slideNum = 4 + i;
+  const slide = document.createElement('section');
+  slide.className = 'slide';
+  slide.dataset.slide = slideNum;
+  slide.innerHTML = `
+    <div class="logo-stage">
+      <div class="round-banner">
+        <span class="round-tag">ROUND ${String(i+1).padStart(2,'0')}</span>
+        <span style="color:var(--dim);font-size:14px">/ 25</span>
+        <span class="prize-tag">★ ₱100</span>
+      </div>
+      <div class="logo-frame">
+        ${logo.svg}
+      </div>
+      <div class="logo-hint">▼ GUESS THE LOGO ▼</div>
+      <div class="answer-input blink">> AWAITING INPUT_</div>
+    </div>
+  `;
+  thankYou.parentNode.insertBefore(slide, thankYou);
+});
+
+/* ============== INJECT QA MASTER SLIDES (32-37) ============== */
+const qaMasters = [
+  [['Ailyn Bustamante','A'], ['Aldrin Rebalde','A']],
+  [['Arniel Belleza','A'], ['Christian Vidal','C']],
+  [['Faye Pauline Pampo','F'], ['Francisco Almine','F']],
+  [['Jecelle Alexis Dela Cruz','J'], ['Jonna Faith Arces','J']],
+  [['Junith Delos Santos','J'], ['Mae Angiele Brita','M']],
+  [['Robbie Fritzy Daug','R'], ['Symon Theodore Guaño','S']],
+];
+
+const game2 = document.querySelector('[data-slide="31"]');
+let qaInsertAfter = game2;
+
+qaMasters.forEach((pair, i) => {
+  const slideNum = 32 + i;
+  const slide = document.createElement('section');
+  slide.className = 'slide';
+  slide.dataset.slide = slideNum;
+  const cards = pair.map(([name, seed]) => `
+    <div class="qa-card">
+      <div class="qa-photo">${avatar(seed)}</div>
+      <div class="qa-name">${name.toUpperCase()}</div>
+      <div class="qa-title">★ QA MASTER ★</div>
+    </div>
+  `).join('');
+  slide.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center">
+      <div class="qa-banner">▶ JUNE 2026 QA MASTERS ◀</div>
+      <div class="qa-grid">${cards}</div>
+    </div>
+  `;
+  // Insert before thank you (slide 38)
+  thankYou.parentNode.insertBefore(slide, thankYou);
+});
+
+/* ============== TOP PERFORMER AVATAR ============== */
+document.getElementById('performerPhoto').innerHTML = avatar('FayePauline');
+
+/* ============== NAVIGATION ============== */
+const slidesEls = Array.from(document.querySelectorAll('.slide'));
+const counter = document.getElementById('counter');
+const progress = document.getElementById('progress');
+const hudRound = document.getElementById('hudRound');
+let current = 0;
+
+function updateCounter(){
+  const n = current+1;
+  counter.textContent = String(n).padStart(2,'0') + ' / ' + String(slidesEls.length).padStart(2,'0');
+  hudRound.textContent = String(n).padStart(2,'0');
+  progress.style.width = (n/slidesEls.length*100) + '%';
+}
+
+function go(idx){
+  if(idx<0||idx>=slidesEls.length) return;
+  slidesEls[current].classList.remove('active','glitch');
+  current = idx;
+  slidesEls[current].classList.add('active','glitch');
+  updateCounter();
+  // Confetti on winner slides
+  if(slidesEls[current].querySelector('.performer-card') || slidesEls[current].querySelector('.qa-banner')){
+    burstConfetti();
+  }
+  if(current === slidesEls.length-1){
+    burstConfetti();
+  }
+}
+
+document.getElementById('prevBtn').addEventListener('click', ()=>go(current-1));
+document.getElementById('nextBtn').addEventListener('click', ()=>go(current+1));
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){go(current+1);e.preventDefault()}
+  if(e.key==='ArrowLeft'||e.key==='PageUp'){go(current-1);e.preventDefault()}
+  if(e.key==='Home'){go(0)}
+  if(e.key==='End'){go(slidesEls.length-1)}
+});
+
+/* ============== CONFETTI ============== */
+function burstConfetti(){
+  const c = document.getElementById('confetti');
+  const colors = ['#ff2d95','#19d3ff','#ffd23f','#3fff7e','#a64dff','#ff7b29'];
+  for(let i=0;i<60;i++){
+    const s=document.createElement('span');
+    s.style.left=Math.random()*100+'vw';
+    s.style.background=colors[Math.floor(Math.random()*colors.length)];
+    s.style.animationDuration=(2+Math.random()*2)+'s';
+    s.style.animationDelay=Math.random()*.5+'s';
+    if(Math.random()>.5){s.style.width='6px';s.style.height='14px'}
+    c.appendChild(s);
+    setTimeout(()=>s.remove(),5000);
+  }
+}
+
+updateCounter();
+</script>
+</body>
+</html>
