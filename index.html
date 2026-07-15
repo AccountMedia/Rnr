@@ -695,7 +695,7 @@ for(let i=0;i<40;i++){
   stars.appendChild(s);
 }
 
-/* ============== LOCAL STORAGE HELPER ============== */
+/* ============== LOCAL STORAGE HELPER (For Images & Text) ============== */
 function getState() {
   try { return JSON.parse(localStorage.getItem('recognitionState')) || {}; }
   catch(e) { return {}; }
@@ -704,10 +704,58 @@ function saveState(state) {
   try {
     localStorage.setItem('recognitionState', JSON.stringify(state));
   } catch(e) {
-    console.warn("Save failed (likely due to large video files exceeding localStorage limit). Images and text will still save, but videos might not persist on refresh.", e);
+    console.warn("Image save failed (too large).", e);
   }
 }
 let savedState = getState();
+
+/* ============== INDEXED DB HELPER (For Videos) ============== */
+let db;
+const dbRequest = indexedDB.open('am_recognition_db', 1);
+
+dbRequest.onupgradeneeded = function(event) {
+  db = event.target.result;
+  if (!db.objectStoreNames.contains('videos')) {
+    db.createObjectStore('videos', { keyPath: 'id' });
+  }
+};
+
+dbRequest.onsuccess = function(event) {
+  db = event.target.result;
+  loadSavedVideos(); // Load videos onto slides once DB is ready
+};
+
+dbRequest.onerror = function(event) {
+  console.error("IndexedDB error:", event);
+};
+
+function saveVideoToDB(id, blob) {
+  if (!db) return;
+  const tx = db.transaction('videos', 'readwrite');
+  const store = tx.objectStore('videos');
+  store.put({ id: id, blob: blob });
+}
+
+function loadVideoFromDB(id, callback) {
+  if (!db) return callback(null);
+  const tx = db.transaction('videos', 'readonly');
+  const store = tx.objectStore('videos');
+  const req = store.get(id);
+  req.onsuccess = () => callback(req.result ? req.result.blob : null);
+  req.onerror = () => callback(null);
+}
+
+function loadSavedVideos() {
+  document.querySelectorAll('.video-target').forEach(target => {
+    const id = target.dataset.uploadKey;
+    loadVideoFromDB(id, (blob) => {
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        target.innerHTML = `<video src="${url}" controls playsinline class="uploaded-video"></video><div class="upload-hint">⬆ CLICK TO REPLACE VIDEO</div>`;
+      }
+    });
+  });
+}
 
 /* ============== PIXEL ART LOGOS (SVG) ============== */
 function px(rows, palette){
@@ -1054,11 +1102,8 @@ for(let i=0; i<12; i++) {
   const vSlide = document.createElement('section');
   vSlide.className = 'slide';
   vSlide.dataset.slide = 33 + i;
-  const savedVideo = savedState[`video-${i}`];
-  const videoHtml = savedVideo ? 
-    `<video src="${savedVideo}" controls autoplay playsinline class="uploaded-video"></video>` :
-    `<div class="video-placeholder">▶ CLICK TO UPLOAD MP4<br>OR DRAG & DROP</div>`;
   
+  // Starts with placeholder. IndexedDB will replace it if a video exists.
   vSlide.innerHTML = `
     <div class="logo-stage">
       <div class="round-banner">
@@ -1066,7 +1111,7 @@ for(let i=0; i<12; i++) {
         <span style="color:var(--dim);font-size:14px">/ 12</span>
       </div>
       <div class="video-frame video-target" data-upload-key="video-${i}">
-        ${videoHtml}
+        <div class="video-placeholder">▶ CLICK TO UPLOAD MP4<br>OR DRAG & DROP</div>
         <div class="upload-hint">⬆ CLICK TO REPLACE VIDEO</div>
       </div>
     </div>
@@ -1254,17 +1299,17 @@ document.addEventListener('click', e=>{
 
 function handleVideoUpload(file, target) {
   if(!file || !file.type.startsWith('video/')) return;
-  const reader = new FileReader();
-  reader.onload = ev=>{
-    const newHtml = `<video src="${ev.target.result}" controls autoplay playsinline class="uploaded-video"></video><div class="upload-hint">⬆ CLICK TO REPLACE VIDEO</div>`;
-    target.innerHTML = newHtml;
-    const key = target.dataset.uploadKey;
-    if(key) {
-      savedState[key] = newHtml;
-      saveState(savedState); // May fail if file is too large, handled in saveState
-    }
-  };
-  reader.readAsDataURL(file);
+  
+  // Create a URL to display the video immediately
+  const videoURL = URL.createObjectURL(file);
+  const newHtml = `<video src="${videoURL}" controls autoplay playsinline class="uploaded-video"></video><div class="upload-hint">⬆ CLICK TO REPLACE VIDEO</div>`;
+  target.innerHTML = newHtml;
+  
+  const key = target.dataset.uploadKey;
+  if(key) {
+    // Save the raw file (Blob) to IndexedDB so it persists
+    saveVideoToDB(key, file);
+  }
 }
 
 videoInput.addEventListener('change', e=>{
