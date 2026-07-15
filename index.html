@@ -481,7 +481,7 @@
         </div>
         <h2 class="title-md" style="text-align:center">GUESS THE LOGO</h2>
         <ul class="mech-list">
-          <li><b>ROUNDS</b><span class="val">25 stages of pixelated logos</span></li>
+          <li><b>ROUNDS</b><span class="val">20 stages</span></li>
           <li><b>SPEED</b><span class="val">First correct answer in chat <span class="green">wins the round</span></span></li>
           <li><b>REWARD</b><span class="val">Every correct answer = <span class="pink">₱100</span></span></li>
           <li><b>FORMAT</b><span class="val">Abbreviation or full name accepted</span></li>
@@ -871,7 +871,7 @@ function avatar(seed){
 
 /* ============== INJECT LOGO SLIDES (4-29) ============== */
 const stage = document.getElementById('stage');
-const thankYou = document.querySelector('[data-slide="38"]');
+const topPerformer = document.querySelector('[data-slide="30"]');
 
 logos.forEach((logo, i) => {
   const slideNum = 4 + i;
@@ -893,7 +893,8 @@ logos.forEach((logo, i) => {
       <div class="answer-input blink">> AWAITING INPUT_</div>
     </div>
   `;
-  thankYou.parentNode.insertBefore(slide, thankYou);
+  // Insert before Top Performer to maintain the correct sequence
+  topPerformer.parentNode.insertBefore(slide, topPerformer);
 });
 
 /* ============== INJECT QA MASTER SLIDES (32-37) ============== */
@@ -907,6 +908,7 @@ const qaMasters = [
 ];
 
 const game2 = document.querySelector('[data-slide="31"]');
+const thankYou = document.querySelector('[data-slide="38"]');
 
 qaMasters.forEach((pair, i) => {
   const slideNum = 32 + i;
@@ -929,6 +931,7 @@ qaMasters.forEach((pair, i) => {
       <div class="qa-grid">${cards}</div>
     </div>
   `;
+  // Insert before Thank You slide
   thankYou.parentNode.insertBefore(slide, thankYou);
 });
 
