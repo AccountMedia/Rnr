@@ -771,11 +771,10 @@ function loadVideoFromDB(id, callback) {
   }
 }
 
-/* Resize a .video-frame container to match the intrinsic dimensions of its video,
-   fitting it within a bounding box so it never overflows the screen. */
-function fitVideoFrame(frame, video){
-  if(!frame || !video || !video.videoWidth || !video.videoHeight) return;
-  const ratio = video.videoWidth / video.videoHeight;
+/* Resize a .video-frame container to a given aspect ratio, fitting it within a
+   bounding box so it never overflows the screen. */
+function fitVideoFrameToRatio(frame, ratio){
+  if(!frame || !ratio || !isFinite(ratio) || ratio <= 0) return;
   const maxW = Math.min(640, window.innerWidth * 0.8);
   const maxH = window.innerHeight * 0.7;
 
@@ -792,11 +791,92 @@ function fitVideoFrame(frame, video){
   frame.dataset.fitRatio = ratio;
 }
 
+/* Fit the frame to the video's raw encoded dimensions (quick first-pass sizing,
+   used before we've had a chance to analyze the actual pixel content). */
+function fitVideoFrame(frame, video){
+  if(!video || !video.videoWidth || !video.videoHeight) return;
+  fitVideoFrameToRatio(frame, video.videoWidth / video.videoHeight);
+}
+
+/* Pure pixel-analysis helper (kept separate from canvas/video access so it can be
+   unit tested): scans a downsampled RGBA buffer for near-black rows/columns along
+   the edges and returns the bounding box of the actual (non-black) visible content. */
+function computeVideoCropBox(data, sampleW, sampleH, THRESH){
+  THRESH = THRESH || 16;
+  const brightness = (x, y) => {
+    const i = (y * sampleW + x) * 4;
+    return (data[i] + data[i+1] + data[i+2]) / 3;
+  };
+  const rowIsBar = (y) => {
+    let sum = 0;
+    for (let x = 0; x < sampleW; x++) sum += brightness(x, y);
+    return (sum / sampleW) < THRESH;
+  };
+  const colIsBar = (x) => {
+    let sum = 0;
+    for (let y = 0; y < sampleH; y++) sum += brightness(x, y);
+    return (sum / sampleH) < THRESH;
+  };
+
+  let top = 0, bottom = sampleH - 1, left = 0, right = sampleW - 1;
+  while (top < sampleH * 0.45 && rowIsBar(top)) top++;
+  while (bottom > sampleH * 0.55 && rowIsBar(bottom)) bottom--;
+  while (left < sampleW * 0.45 && colIsBar(left)) left++;
+  while (right > sampleW * 0.55 && colIsBar(right)) right--;
+
+  return { top, bottom, left, right };
+}
+
+/* Detect black letterbox/pillarbox bars baked into a video's actual pixels (common
+   with vertical clips exported onto a widescreen canvas) and eliminate them by
+   shaping the frame to the real visible content and cropping the video to fill it
+   edge-to-edge, instead of leaving black margins on screen. */
+function autoCropVideo(frame, video){
+  const w = video.videoWidth, h = video.videoHeight;
+  if(!w || !h) return;
+
+  const sampleW = 120;
+  const sampleH = Math.max(1, Math.round(sampleW * h / w));
+  let data;
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = sampleW;
+    canvas.height = sampleH;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(video, 0, 0, sampleW, sampleH);
+    data = ctx.getImageData(0, 0, sampleW, sampleH).data;
+  } catch(e) {
+    // Frame not decodable yet (or canvas read blocked) — fall back to plain fit
+    fitVideoFrame(frame, video);
+    return;
+  }
+
+  const box = computeVideoCropBox(data, sampleW, sampleH, 16);
+  const cropW = Math.max(1, box.right - box.left + 1);
+  const cropH = Math.max(1, box.bottom - box.top + 1);
+  const barsFound = cropW < sampleW * 0.96 || cropH < sampleH * 0.96;
+
+  if(!barsFound){
+    video.style.objectFit = 'contain';
+    video.style.objectPosition = 'center center';
+    fitVideoFrame(frame, video);
+    return;
+  }
+
+  const contentRatio = (cropW / sampleW * w) / (cropH / sampleH * h);
+  fitVideoFrameToRatio(frame, contentRatio);
+
+  const posX = ((box.left + box.right) / 2 / (sampleW - 1)) * 100;
+  const posY = ((box.top + box.bottom) / 2 / (sampleH - 1)) * 100;
+  video.style.objectFit = 'cover';
+  video.style.objectPosition = `${posX.toFixed(1)}% ${posY.toFixed(1)}%`;
+}
+
 /* Keep the currently-visible video frame correctly fitted if the window resizes */
 window.addEventListener('resize', () => {
   document.querySelectorAll('.video-frame[data-fit-ratio]').forEach(frame => {
     const video = frame.querySelector('video.uploaded-video');
-    if (video) fitVideoFrame(frame, video);
+    if (video) fitVideoFrameToRatio(frame, parseFloat(frame.dataset.fitRatio));
   });
 });
 
@@ -814,7 +894,12 @@ function loadSavedVideos() {
           if (videoEl.readyState >= 1) {
             fitVideoFrame(target, videoEl);
           } else {
-            videoEl.addEventListener('loadedmetadata', () => fitVideoFrame(target, videoEl));
+            videoEl.addEventListener('loadedmetadata', () => fitVideoFrame(target, videoEl), { once: true });
+          }
+          if (videoEl.readyState >= 2) {
+            autoCropVideo(target, videoEl);
+          } else {
+            videoEl.addEventListener('loadeddata', () => autoCropVideo(target, videoEl), { once: true });
           }
         }
       }
@@ -1439,7 +1524,8 @@ function handleVideoUpload(file, target) {
 
   const videoEl = target.querySelector('video.uploaded-video');
   if (videoEl) {
-    videoEl.addEventListener('loadedmetadata', () => fitVideoFrame(target, videoEl));
+    videoEl.addEventListener('loadedmetadata', () => fitVideoFrame(target, videoEl), { once: true });
+    videoEl.addEventListener('loadeddata', () => autoCropVideo(target, videoEl), { once: true });
   }
 }
 
