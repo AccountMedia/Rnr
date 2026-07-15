@@ -239,6 +239,7 @@
     border:2px solid var(--cyan);
     opacity:0;transition:opacity .2s;z-index:3;
     pointer-events:none;
+    white-space:nowrap;
   }
   .logo-frame:hover .upload-hint,
   .upload-target:hover .upload-hint{opacity:1}
@@ -431,48 +432,11 @@
   .bar:nth-child(10){background:var(--green);animation-delay:.9s}
   @keyframes eq{0%,100%{height:30px}50%{height:110px}}
 
-  /* Upload mode badge */
-  .upload-badge{
-    position:fixed;top:50px;left:50%;transform:translateX(-50%);
-    z-index:10001;
-    font-family:'Press Start 2P',monospace;font-size:11px;
-    background:var(--yellow);color:#000;
-    padding:8px 16px;letter-spacing:1px;
-    box-shadow:4px 4px 0 var(--pink);
-    display:none;
-  }
-  .upload-badge.show{display:block;animation:blink 1s steps(2) infinite}
-
-  /* Toolbar */
-  .toolbar{
-    position:fixed;top:18px;left:50%;transform:translateX(-50%);
-    z-index:10000;
-    display:flex;gap:10px;
-  }
-  .toolbar button{
-    background:rgba(0,0,0,.7);
-    color:var(--cyan);
-    font-family:'Press Start 2P',monospace;font-size:10px;
-    border:2px solid var(--cyan);
-    padding:8px 12px;cursor:pointer;
-    letter-spacing:1px;
-    transition:all .15s;
-  }
-  .toolbar button:hover{
-    background:var(--cyan);color:#000;
-    box-shadow:0 0 16px var(--cyan);
-  }
-  .toolbar button.active{
-    background:var(--yellow);color:#000;border-color:var(--yellow);
-    box-shadow:0 0 16px var(--yellow);
-  }
-
   @media (max-width:768px){
     .slide{padding:30px 20px}
     .qa-grid{gap:30px}
     .qa-photo,.performer-photo{width:140px;height:140px}
     .logo-frame{width:80vmin;height:80vmin}
-    .toolbar{top:auto;bottom:80px}
   }
 </style>
 </head>
@@ -489,12 +453,6 @@
     <div>AM RECOGNITION</div>
     <div style="color:var(--green)">JUNE 2026</div>
   </div>
-
-  <div class="toolbar">
-    <button id="uploadToggle" title="Toggle upload mode">⬆ UPLOAD MODE</button>
-    <button id="resetBtn" title="Reset all uploads">↺ RESET</button>
-  </div>
-  <div class="upload-badge" id="uploadBadge">▶ UPLOAD MODE: ON — CLICK ANY PHOTO/LOGO</div>
 
   <div class="stage" id="stage">
 
@@ -1031,37 +989,13 @@ function burstConfetti(){
   }
 }
 
-/* ============== UPLOAD MODE ============== */
-let uploadMode = false;
-const uploadToggle = document.getElementById('uploadToggle');
-const uploadBadge = document.getElementById('uploadBadge');
+/* ============== CLICK TO UPLOAD ============== */
 const fileInput = document.getElementById('fileInput');
 let activeTarget = null;
 
-// Store original content for reset
-const originalContent = new Map();
-
-function toggleUploadMode(){
-  uploadMode = !uploadMode;
-  uploadToggle.classList.toggle('active', uploadMode);
-  uploadBadge.classList.toggle('show', uploadMode);
-  document.body.style.cursor = uploadMode ? 'crosshair' : 'default';
-}
-
-uploadToggle.addEventListener('click', toggleUploadMode);
-
-// Click handler for upload targets
 document.addEventListener('click', e=>{
   const target = e.target.closest('.upload-target');
   if(!target) return;
-  if(!uploadMode){
-    // Allow direct click on photos even without upload mode for convenience
-    if(target.classList.contains('performer-photo') || target.classList.contains('qa-photo') || target.classList.contains('logo-frame')){
-      // still allow
-    } else {
-      return;
-    }
-  }
   e.stopPropagation();
   activeTarget = target;
   fileInput.click();
@@ -1072,13 +1006,7 @@ fileInput.addEventListener('change', e=>{
   if(!file || !activeTarget) return;
   const reader = new FileReader();
   reader.onload = ev=>{
-    // Save original if not already saved
-    if(!originalContent.has(activeTarget.dataset.uploadKey)){
-      originalContent.set(activeTarget.dataset.uploadKey, activeTarget.innerHTML);
-    }
-    // Clear and insert image
     activeTarget.innerHTML = `<img src="${ev.target.result}" class="uploaded" alt="uploaded">`;
-    // Re-add hint for logos and photos
     const hint = document.createElement('div');
     hint.className = 'upload-hint';
     hint.textContent = '⬆ CLICK TO REPLACE';
@@ -1086,18 +1014,6 @@ fileInput.addEventListener('change', e=>{
   };
   reader.readAsDataURL(file);
   fileInput.value = '';
-});
-
-// Reset all uploads
-document.getElementById('resetBtn').addEventListener('click', ()=>{
-  if(!confirm('Reset all uploaded photos and logos to defaults?')) return;
-  document.querySelectorAll('.upload-target').forEach(t=>{
-    const key = t.dataset.uploadKey;
-    if(originalContent.has(key)){
-      t.innerHTML = originalContent.get(key);
-    }
-  });
-  originalContent.clear();
 });
 
 // Drag and drop support
@@ -1113,9 +1029,6 @@ document.addEventListener('drop', e=>{
   activeTarget = target;
   const reader = new FileReader();
   reader.onload = ev=>{
-    if(!originalContent.has(target.dataset.uploadKey)){
-      originalContent.set(target.dataset.uploadKey, target.innerHTML);
-    }
     target.innerHTML = `<img src="${ev.target.result}" class="uploaded" alt="uploaded">`;
     const hint = document.createElement('div');
     hint.className = 'upload-hint';
