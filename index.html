@@ -236,6 +236,9 @@
   .video-frame {
     width:min(640px, 80vw);
     aspect-ratio: 16/9;
+    max-width:80vw;
+    max-height:70vh;
+    transition:width .25s ease, height .25s ease, aspect-ratio .25s ease, transform .15s;
     box-shadow:
       0 0 0 6px var(--purple),
       0 0 0 12px var(--ink),
@@ -768,6 +771,35 @@ function loadVideoFromDB(id, callback) {
   }
 }
 
+/* Resize a .video-frame container to match the intrinsic dimensions of its video,
+   fitting it within a bounding box so it never overflows the screen. */
+function fitVideoFrame(frame, video){
+  if(!frame || !video || !video.videoWidth || !video.videoHeight) return;
+  const ratio = video.videoWidth / video.videoHeight;
+  const maxW = Math.min(640, window.innerWidth * 0.8);
+  const maxH = window.innerHeight * 0.7;
+
+  let w = maxW;
+  let h = w / ratio;
+  if(h > maxH){
+    h = maxH;
+    w = h * ratio;
+  }
+
+  frame.style.width = w + 'px';
+  frame.style.height = h + 'px';
+  frame.style.aspectRatio = ratio;
+  frame.dataset.fitRatio = ratio;
+}
+
+/* Keep the currently-visible video frame correctly fitted if the window resizes */
+window.addEventListener('resize', () => {
+  document.querySelectorAll('.video-frame[data-fit-ratio]').forEach(frame => {
+    const video = frame.querySelector('video.uploaded-video');
+    if (video) fitVideoFrame(frame, video);
+  });
+});
+
 function loadSavedVideos() {
   document.querySelectorAll('.video-target').forEach(target => {
     const id = target.dataset.uploadKey;
@@ -777,6 +809,14 @@ function loadSavedVideos() {
         target.innerHTML = `<video src="${url}" playsinline class="uploaded-video"></video><div class="upload-hint">⬆ CLICK TO REPLACE VIDEO</div>`;
         const playBtn = target.parentElement.querySelector('.play-btn');
         if (playBtn) playBtn.textContent = '▶ PLAY';
+        const videoEl = target.querySelector('video.uploaded-video');
+        if (videoEl) {
+          if (videoEl.readyState >= 1) {
+            fitVideoFrame(target, videoEl);
+          } else {
+            videoEl.addEventListener('loadedmetadata', () => fitVideoFrame(target, videoEl));
+          }
+        }
       }
     });
   });
@@ -1396,6 +1436,11 @@ function handleVideoUpload(file, target) {
   
   const playBtn = target.parentElement.querySelector('.play-btn');
   if (playBtn) playBtn.textContent = '▶ PLAY';
+
+  const videoEl = target.querySelector('video.uploaded-video');
+  if (videoEl) {
+    videoEl.addEventListener('loadedmetadata', () => fitVideoFrame(target, videoEl));
+  }
 }
 
 videoInput.addEventListener('change', e=>{
