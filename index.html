@@ -269,8 +269,8 @@
     transition:opacity .2s steps(4), transform .2s steps(4);
     outline:none;
     border:2px dashed transparent;
-    text-align:center; /* Center/Justify the text */
-    width:100%; /* Ensure it takes full width to center properly */
+    text-align:center;
+    width:100%;
   }
   .answer-reveal.visible{
     opacity:1;visibility:visible;transform:scale(1);
@@ -600,6 +600,17 @@ for(let i=0;i<40;i++){
   stars.appendChild(s);
 }
 
+/* ============== LOCAL STORAGE HELPER ============== */
+function getState() {
+  try { return JSON.parse(localStorage.getItem('recognitionState')) || {}; }
+  catch(e) { return {}; }
+}
+function saveState(state) {
+  try { localStorage.setItem('recognitionState', JSON.stringify(state)); }
+  catch(e) { console.error("Save failed", e); }
+}
+let savedState = getState();
+
 /* ============== PIXEL ART LOGOS (SVG) ============== */
 function px(rows, palette){
   const h = rows.length, w = rows[0].length;
@@ -903,6 +914,11 @@ logos.forEach((logo, i) => {
   const slide = document.createElement('section');
   slide.className = 'slide';
   slide.dataset.slide = slideNum;
+  
+  // Check if we have saved HTML for this logo frame
+  const savedHtml = savedState[`logo-${i}`] || `${logo.svg}<div class="upload-hint">⬆ CLICK TO UPLOAD LOGO</div>`;
+  const savedText = savedState[`text-logo-${i}`] || logo.name;
+  
   slide.innerHTML = `
     <div class="logo-stage">
       <div class="round-banner">
@@ -911,11 +927,10 @@ logos.forEach((logo, i) => {
         <span class="prize-tag">★ ₱100</span>
       </div>
       <div class="logo-frame upload-target" data-upload-key="logo-${i}">
-        ${logo.svg}
-        <div class="upload-hint">⬆ CLICK TO UPLOAD LOGO</div>
+        ${savedHtml}
       </div>
       <button class="reveal-btn">▶ REVEAL</button>
-      <div class="answer-reveal" contenteditable="true" spellcheck="false">${logo.name}</div>
+      <div class="answer-reveal" contenteditable="true" spellcheck="false" data-text-key="text-logo-${i}">${savedText}</div>
     </div>
   `;
   // Insert before Top Performer to maintain the correct sequence
@@ -940,16 +955,19 @@ qaMasters.forEach((pair, i) => {
   const slide = document.createElement('section');
   slide.className = 'slide';
   slide.dataset.slide = slideNum;
-  const cards = pair.map(([name, seed], j) => `
-    <div class="qa-card">
-      <div class="qa-photo upload-target" data-upload-key="qa-${i}-${j}">
-        ${avatar(seed)}
-        <div class="upload-hint">⬆ UPLOAD PHOTO</div>
+  const cards = pair.map(([name, seed], j) => {
+    const key = `qa-${i}-${j}`;
+    const savedHtml = savedState[key] || `${avatar(seed)}<div class="upload-hint">⬆ UPLOAD PHOTO</div>`;
+    return `
+      <div class="qa-card">
+        <div class="qa-photo upload-target" data-upload-key="${key}">
+          ${savedHtml}
+        </div>
+        <div class="qa-name">${name.toUpperCase()}</div>
+        <div class="qa-title">★ QA MASTER ★</div>
       </div>
-      <div class="qa-name">${name.toUpperCase()}</div>
-      <div class="qa-title">★ QA MASTER ★</div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
   slide.innerHTML = `
     <div style="display:flex;flex-direction:column;align-items:center">
       <div class="qa-banner">▶ JUNE 2026 QA MASTERS ◀</div>
@@ -961,7 +979,8 @@ qaMasters.forEach((pair, i) => {
 });
 
 /* ============== TOP PERFORMER AVATAR ============== */
-document.getElementById('performerPhoto').innerHTML = avatar('FayePauline') + '<div class="upload-hint">⬆ UPLOAD PHOTO</div>';
+const savedPerformerHtml = savedState['performer'] || avatar('FayePauline') + '<div class="upload-hint">⬆ UPLOAD PHOTO</div>';
+document.getElementById('performerPhoto').innerHTML = savedPerformerHtml;
 
 /* ============== NAVIGATION ============== */
 const slidesEls = Array.from(document.querySelectorAll('.slide'));
@@ -1035,6 +1054,17 @@ document.addEventListener('click', e=>{
   }
 });
 
+/* ============== SAVE TEXT EDITS ============== */
+document.addEventListener('input', e => {
+  if(e.target.classList.contains('answer-reveal')) {
+    const key = e.target.dataset.textKey;
+    if(key) {
+      savedState[key] = e.target.textContent;
+      saveState(savedState);
+    }
+  }
+});
+
 /* ============== CLICK TO UPLOAD ============== */
 const fileInput = document.getElementById('fileInput');
 let activeTarget = null;
@@ -1042,23 +1072,34 @@ let activeTarget = null;
 document.addEventListener('click', e=>{
   const target = e.target.closest('.upload-target');
   if(!target) return;
+  // Prevent triggering upload if user is just interacting with an image inside (though there isn't much interaction, good practice)
+  if(e.target.isContentEditable) return; 
   e.stopPropagation();
   activeTarget = target;
   fileInput.click();
 });
 
+function handleImageUpload(file, target) {
+  if(!file || !file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    const newHtml = `<img src="${ev.target.result}" class="uploaded" alt="uploaded"><div class="upload-hint">⬆ CLICK TO REPLACE</div>`;
+    target.innerHTML = newHtml;
+    
+    // Save to localStorage
+    const key = target.dataset.uploadKey;
+    if(key) {
+      savedState[key] = newHtml;
+      saveState(savedState);
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
 fileInput.addEventListener('change', e=>{
   const file = e.target.files[0];
   if(!file || !activeTarget) return;
-  const reader = new FileReader();
-  reader.onload = ev=>{
-    activeTarget.innerHTML = `<img src="${ev.target.result}" class="uploaded" alt="uploaded">`;
-    const hint = document.createElement('div');
-    hint.className = 'upload-hint';
-    hint.textContent = '⬆ CLICK TO REPLACE';
-    activeTarget.appendChild(hint);
-  };
-  reader.readAsDataURL(file);
+  handleImageUpload(file, activeTarget);
   fileInput.value = '';
 });
 
@@ -1071,17 +1112,7 @@ document.addEventListener('drop', e=>{
   const target = e.target.closest('.upload-target');
   if(!target) return;
   const file = e.dataTransfer.files[0];
-  if(!file || !file.type.startsWith('image/')) return;
-  activeTarget = target;
-  const reader = new FileReader();
-  reader.onload = ev=>{
-    target.innerHTML = `<img src="${ev.target.result}" class="uploaded" alt="uploaded">`;
-    const hint = document.createElement('div');
-    hint.className = 'upload-hint';
-    hint.textContent = '⬆ CLICK TO REPLACE';
-    target.appendChild(hint);
-  };
-  reader.readAsDataURL(file);
+  handleImageUpload(file, target);
 });
 
 updateCounter();
